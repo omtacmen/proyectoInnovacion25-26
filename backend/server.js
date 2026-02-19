@@ -1,18 +1,41 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Permite recibir datos grandes
+app.use(express.json());
 
-// 1. CONEXIÓN A MONGODB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Conectado a MongoDB Atlas'))
+// 1. PREPARAR CARPETA LOCAL PARA LAS IMÁGENES
+const carpetaUploads = path.join(__dirname, 'uploads');
+// Si la carpeta no existe, la crea automáticamente
+if (!fs.existsSync(carpetaUploads)) {
+  fs.mkdirSync(carpetaUploads);
+}
+// Permitimos que cualquiera (tu React o tus Quest 3) pueda ver las fotos de esta carpeta
+app.use('/uploads', express.static(carpetaUploads));
+
+// Configurar 'multer' para guardar las imágenes con su nombre y fecha
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, carpetaUploads); // Se guardan en la carpeta 'uploads'
+  },
+  filename: function (req, file, cb) {
+    const sufijoUnico = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, sufijoUnico + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
+
+// 2. CONECTAR A MONGODB LOCAL
+mongoose.connect('mongodb://127.0.0.1:27017/sala_vr_db')
+  .then(() => console.log('✅ Conectado a MongoDB Local'))
   .catch(err => console.error('Error conectando a MongoDB:', err));
 
-// 2. DEFINIR LA ESTRUCTURA DE LA BASE DE DATOS (ESQUEMA)
+// 3. ESQUEMA DE BASE DE DATOS PARA TUS TEMÁTICAS
 const TematicaSchema = new mongoose.Schema({
   id_frontend: String,
   nombre: String,
@@ -21,12 +44,22 @@ const TematicaSchema = new mongoose.Schema({
   imagenes: Array,
   elementosSala: Array
 });
-
 const Tematica = mongoose.model('Tematica', TematicaSchema);
 
-// 3. CREAR LAS RUTAS (API) PARA QUE REACT Y LAS QUEST 3 SE CONECTEN
+// 4. RUTAS DEL SERVIDOR (API)
 
-// Leer todas las temáticas (GET)
+// RUTA PARA SUBIR IMÁGENES
+app.post('/api/upload', upload.single('imagen'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No se subió ninguna imagen' });
+  }
+  // IMPORTANTE PARA VR: Generamos la URL local para acceder a la foto
+  // Nota: Cuando uses las gafas, cambiaremos 'localhost' por la IP de tu PC
+  const urlLocal = `http://localhost:5000/uploads/${req.file.filename}`;
+  res.json({ url: urlLocal });
+});
+
+// Obtener todas las temáticas
 app.get('/api/tematicas', async (req, res) => {
   try {
     const tematicas = await Tematica.find();
@@ -36,25 +69,22 @@ app.get('/api/tematicas', async (req, res) => {
   }
 });
 
-// Guardar o actualizar una temática (POST)
+// Guardar o actualizar una temática entera
 app.post('/api/tematicas', async (req, res) => {
   try {
     const datos = req.body;
-
-    // Busca si ya existe. Si existe, la actualiza. Si no, la crea.
     const tematicaGuardada = await Tematica.findOneAndUpdate(
       { id_frontend: datos.id }, 
       datos, 
-      { new: true, upsert: true }
+      { new: true, upsert: true } // Upsert: Si no existe, la crea
     );
-
     res.json(tematicaGuardada);
   } catch (error) {
     res.status(500).json({ error: 'Error al guardar datos' });
   }
 });
 
-// Borrar una temática (DELETE)
+// Borrar una temática
 app.delete('/api/tematicas/:id', async (req, res) => {
   try {
     await Tematica.findOneAndDelete({ id_frontend: req.params.id });
@@ -64,6 +94,7 @@ app.delete('/api/tematicas/:id', async (req, res) => {
   }
 });
 
-// 4. ARRANCAR EL SERVIDOR
-const PORT = process.env.PUERTO || 5000;
-app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
+// 5. ARRANCAR EL SERVIDOR
+app.listen(5000, '0.0.0.0', () => {
+  console.log(`Servidor local corriendo en http://localhost:5000`);
+});
