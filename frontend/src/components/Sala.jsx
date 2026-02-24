@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sala({ cambiarVista, elementos, setElementos, imagenesDisponibles, nombreTematica }) {
+export default function Sala({ cambiarVista, elementos, setElementos, imagenesDisponibles, setImagenes, nombreTematica }) {
   const [muebleActivo, setMuebleActivo] = useState(null);
 
   // Funciones de creación
@@ -51,6 +51,22 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
 
   const imagenesParaMostrar = obtenerImagenesFiltradas();
 
+  const borrarMueble = (e, idMueble) => {
+    e.stopPropagation();
+    setElementos(elementos.filter(el => el.id !== idMueble));
+  };
+
+  const editarImagenSala = (e, urlImagen) => {
+    e.stopPropagation();
+    const img = imagenesDisponibles.find(i => i.url === urlImagen);
+    if (img) {
+      const nuevaDesc = window.prompt('Editar descripción:', img.descripcion);
+      if (nuevaDesc !== null) {
+        setImagenes(imagenesDisponibles.map(i => i.url === urlImagen ? { ...i, descripcion: nuevaDesc } : i));
+      }
+    }
+  };
+
   return (
     <div className="app-container">
       <aside className="sidebar">
@@ -76,22 +92,35 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
           <div className="zona zona-4">ZONA 4</div>
 
           <div className="sala-canvas" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-            {elementos.map(el => (
-              <div
-                key={el.id} 
-                className={`mueble ${el.tipo}`} 
-                style={{ left: el.x, top: el.y }}
-                draggable 
-                onDragStart={(e) => handleDragStart(e, el.id)} 
-                onClick={() => setMuebleActivo(el.id)}
-              >
-                {el.imagen ? (
-                  <img src={el.imagen} alt="contenido" className="mueble-img" />
-                ) : (
-                  <span className="mueble-placeholder">Vacío</span>
-                )}
-              </div>
-            ))}
+            {elementos.map(el => {
+              // Buscamos los datos de la imagen (para sacar la descripción)
+              const imgData = el.imagen ? imagenesDisponibles.find(i => i.url === el.imagen) : null;
+
+              return (
+                <div
+                  key={el.id} className={`mueble ${el.tipo}`} style={{ left: el.x, top: el.y }}
+                  draggable onDragStart={(e) => handleDragStart(e, el.id)} onClick={() => setMuebleActivo(el.id)}
+                >
+                  {/* Botones de acción del mueble */}
+                  <div className="mueble-acciones">
+                    {el.imagen && (
+                      <button className="btn-icono editar" title="Editar descripción" onClick={(e) => editarImagenSala(e, el.imagen)}>✏️</button>
+                    )}
+                    <button className="btn-icono borrar" title="Quitar mueble" onClick={(e) => borrarMueble(e, el.id)}>🗑️</button>
+                  </div>
+
+                  {el.imagen ? (
+                    <>
+                      <img src={el.imagen} alt="contenido" className="mueble-img" />
+                      {/* Mostrar descripción flotante debajo del mueble */}
+                      {imgData && <div className="mueble-desc-flotante">{imgData.descripcion}</div>}
+                    </>
+                  ) : (
+                    <span className="mueble-placeholder">Vacío</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </main>
