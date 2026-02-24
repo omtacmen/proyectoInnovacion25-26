@@ -6,7 +6,12 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-app.use(cors());
+// Configuración explícita de CORS para permitir a tu React (Vite) conectarse
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Los puertos de tu React
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // 1. PREPARAR CARPETA LOCAL PARA LAS IMÁGENES
@@ -55,7 +60,7 @@ app.post('/api/upload', upload.single('imagen'), (req, res) => {
   }
   // IMPORTANTE PARA VR: Generamos la URL local para acceder a la foto
   // Nota: Cuando uses las gafas, cambiaremos 'localhost' por la IP de tu PC
-  const urlLocal = `http://localhost:5000/uploads/${req.file.filename}`;
+  const urlLocal = `http://localhost:5005/uploads/${req.file.filename}`;
   res.json({ url: urlLocal });
 });
 
@@ -95,6 +100,6 @@ app.delete('/api/tematicas/:id', async (req, res) => {
 });
 
 // 5. ARRANCAR EL SERVIDOR
-app.listen(5000, '0.0.0.0', () => {
-  console.log(`Servidor local corriendo en http://localhost:5000`);
+app.listen(5005, '0.0.0.0', () => {
+  console.log(`Servidor local corriendo en http://localhost:5005`);
 });
