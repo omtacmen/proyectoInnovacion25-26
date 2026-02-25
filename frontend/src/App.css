@@ -110,6 +110,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+  cursor: pointer;
   transition: background 0.2s;
 }
 
@@ -834,13 +835,76 @@
 /* Texto descriptivo debajo del mueble en la sala */
 .mueble-desc-flotante {
   position: absolute;
-  bottom: -22px;
-  background: rgba(0, 0, 0, 0.7);
+  bottom: -30px; /* Un poco más abajo para que no pise el borde */
+  background: rgba(0, 0, 0, 0.85); /* Fondo oscuro semitransparente */
   color: white;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
   white-space: nowrap;
-  pointer-events: none; /* Para que no estorbe al hacer clic */
+  pointer-events: none; /* Evita que estorbe al hacer clic */
   font-weight: bold;
+  z-index: 105; /* Aseguramos que quede por encima de todo */
+  
+  /* Magia de la animación: oculto por defecto */
+  opacity: 0;
+  transform: translateY(5px);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Cuando el ratón pasa por encima del mueble/hueco, aparece la etiqueta */
+.mueble:hover .mueble-desc-flotante {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* =======================================
+   CUADRÍCULA CENTRAL (MESAS)
+   ======================================= */
+.centro-grid {
+  position: absolute;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  display: grid;
+  gap: 20px;
+  padding: 30px; /* Margen interior para que no toque las paredes */
+  
+  /* Las columnas se calculan dinámicamente en el JSX, 
+     pero hacemos que las filas se adapten solas: */
+  grid-auto-rows: 1fr; 
+}
+
+/* El hueco individual para dejar caer una mesa */
+.slot-centro {
+  border: 3px dashed rgba(33, 150, 243, 0.3); /* Un azul clarito para diferenciarlo de las paredes */
+  background: rgba(33, 150, 243, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+  position: relative;
+  cursor: pointer;
+  overflow: visible; /* Para que la mesa no se salga del recuadro si es muy grande */
+}
+
+.slot-centro:hover {
+  background: rgba(33, 150, 243, 0.15); 
+  border-color: rgba(33, 150, 243, 0.6);
+  z-index: 110; /* Elevamos la mesa activa para que su etiqueta no quede tapada por la mesa de abajo */
+}
+
+.slot-centro .slot-num {
+  font-size: 16px; 
+  color: #2196F3; 
+  font-weight: bold; 
+  opacity: 0.5;
+}
+
+/* Hacemos que la mesa encajada ocupe todo su hueco limpiamente */
+.mueble.en-slot {
+  background-color: transparent;
+  box-shadow: none;
 }
