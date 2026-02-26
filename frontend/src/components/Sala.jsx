@@ -13,82 +13,35 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
     setElementos([...otrosElementos, nuevaConfig]);
   };
 
-  const agregarMueble = (tipo) => {
-    const nuevoId = `${tipo}-${Date.now()}`;
-    const nuevoMueble = { id: nuevoId, tipo: tipo, x: 250, y: 150, imagen: null, slotId: null };
-    setElementos([...elementos, nuevoMueble]);
-  };
-
-  // --- ¡NUEVO! LÓGICA DE CLIC EN LOS HUECOS ---
+  // Lógica de clic en los huecos (CREAR o EDITAR)
   const manejarClickSlot = (slotId, tipoDefecto) => {
-    // Buscamos si ya hay un mueble en este hueco
     const muebleExistente = elementos.find(el => el.slotId === slotId);
 
     if (muebleExistente) {
-      // Si ya hay uno, abrimos el modal para cambiar su foto
       setMuebleActivo(muebleExistente.id);
     } else {
-      // Si el hueco está vacío, CREAMOS el mueble automáticamente y abrimos el modal
       const nuevoId = `${tipoDefecto}-${Date.now()}`;
       const nuevoMueble = { id: nuevoId, tipo: tipoDefecto, x: 250, y: 150, imagen: null, slotId: slotId };
-      
       setElementos(prev => [...prev, nuevoMueble]);
-      setMuebleActivo(nuevoId); // Activa el modal al instante
+      setMuebleActivo(nuevoId); 
     }
   };
 
-  // --- LÓGICA DE DRAG & DROP ---
-  const handleDragStart = (e, id) => {
-    const rect = e.target.getBoundingClientRect();
-    e.dataTransfer.setData('id', id);
-    e.dataTransfer.setData('offsetX', e.clientX - rect.left);
-    e.dataTransfer.setData('offsetY', e.clientY - rect.top);
-  };
-
-  const handleDropCanvas = (e) => {
-    e.preventDefault();
-    const id = e.dataTransfer.getData('id');
-    if (!id) return;
-    
-    const offsetX = parseFloat(e.dataTransfer.getData('offsetX'));
-    const offsetY = parseFloat(e.dataTransfer.getData('offsetY'));
-    const rect = e.currentTarget.getBoundingClientRect();
-    const newX = e.clientX - rect.left - offsetX;
-    const newY = e.clientY - rect.top - offsetY;
-    
-    setElementos(prev => prev.map(el => el.id === id ? { ...el, x: newX, y: newY, slotId: null } : el));
-  };
-
-  const handleDropSlot = (e, slotId) => {
-    e.preventDefault();
-    e.stopPropagation(); 
-    const id = e.dataTransfer.getData('id');
-    if (!id) return;
-
-    const mueble = elementos.find(el => el.id === id);
-    const esSlotPared = slotId.startsWith('z');
-    const esSlotCentro = slotId.startsWith('c');
-
-    if (esSlotPared && !mueble.tipo.includes('cuadro')) {
-      alert("⚠️ Solo puedes colgar cuadros en las paredes."); return;
-    }
-    if (esSlotCentro && !mueble.tipo.includes('mesa')) {
-      alert("⚠️ Solo puedes poner mesas en las cuadrículas del centro."); return;
-    }
-
-    setElementos(prev => prev.map(el => {
-      if (el.slotId === slotId) return { ...el, slotId: null, x: 250, y: 150 }; 
-      if (el.id === id) return { ...el, slotId: slotId }; 
-      return el;
-    }));
-  };
-
-  // --- ACCIONES DE MUEBLES (Editar/Borrar) ---
+  // --- ACCIONES DE MUEBLES ---
+  
+  // 1. Borrar el mueble entero (desaparece la mesa/cuadro)
   const borrarMueble = (e, idMueble) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Evita que se abra el menú de debajo
     setElementos(elementos.filter(el => el.id !== idMueble));
   };
 
+  // 2. NUEVO: Quitar solo la imagen (la mesa/cuadro se queda vacía)
+  const quitarImagenDeMueble = (e, idMueble) => {
+    e.stopPropagation();
+    setElementos(prev => prev.map(el => el.id === idMueble ? { ...el, imagen: null } : el));
+  };
+
+  // 3. Editar el texto flotante
   const editarImagenSala = (e, urlImagen) => {
     e.stopPropagation();
     const img = imagenesDisponibles.find(i => i.url === urlImagen);
@@ -105,37 +58,37 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
     setMuebleActivo(null); 
   };
 
-  // Prevenimos fallos si muebleActivo aún no está en el array durante el ciclo de renderizado rápido
   const muebleActual = elementos.find(el => el.id === muebleActivo);
   const imagenesParaMostrar = muebleActual 
     ? imagenesDisponibles.filter(img => img.tipo === (muebleActual.tipo.includes('mesa') ? 'mesa' : 'cuadro')) 
     : [];
 
   // --- RENDERIZADORES ---
-  // --- RENDERIZADORES ---
-  const renderMueble = (el, enSlot = false) => {
+  const renderMueble = (el, enSlot = true) => {
     const imgData = el.imagen ? imagenesDisponibles.find(i => i.url === el.imagen) : null;
-    const estiloMueble = enSlot ? { position: 'relative', width: '100%', height: '100%', left: 0, top: 0, border: 'none' } : { left: el.x, top: el.y };
+    const estiloMueble = enSlot ? { position: 'relative', width: '100%', height: '100%', left: 0, top: 0, border: 'none' } : { left: el.x, top: el.y, position: 'absolute' };
 
     return (
       <div 
         key={el.id} 
         className={`mueble ${el.tipo} ${enSlot ? 'en-slot' : ''}`} 
         style={estiloMueble} 
-        draggable 
-        onDragStart={(e) => handleDragStart(e, el.id)} 
-        onClick={(e) => { e.stopPropagation(); setMuebleActivo(el.id); }}
+        // ¡Drag & Drop ELIMINADO! Solo nos quedamos con el onClick
+        onClick={(e) => { e.stopPropagation(); setMuebleActivo(el.id); }} 
       >
         <div className="mueble-acciones">
-          {el.imagen && <button className="btn-icono editar" title="Editar descripción" onClick={(e) => editarImagenSala(e, el.imagen)}>✏️</button>}
-          <button className="btn-icono borrar" title="Quitar" onClick={(e) => borrarMueble(e, el.id)}>🗑️</button>
+          {el.imagen && (
+            <>
+              <button className="btn-icono editar" title="Editar descripción" onClick={(e) => editarImagenSala(e, el.imagen)}>✏️</button>
+              <button className="btn-icono borrar" title="Quitar imagen de la mesa" onClick={(e) => quitarImagenDeMueble(e, el.id)}>🧹</button>
+            </>
+          )}
+          <button className="btn-icono borrar" title="Eliminar mesa completa" onClick={(e) => borrarMueble(e, el.id)}>🗑️</button>
         </div>
         
         {el.imagen ? (
           <>
-            {/* Le añadimos la etiqueta title nativa por si acaso, y quitamos el !enSlot del div */}
             <img src={el.imagen} alt={imgData?.descripcion || 'contenido'} className="mueble-img" />
-            
             {imgData && <div className="mueble-desc-flotante">{imgData.descripcion}</div>}
           </>
         ) : (
@@ -154,9 +107,7 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
         <div 
           key={slotId} 
           className="slot-pared" 
-          onDragOver={e => e.preventDefault()} 
-          onDrop={e => handleDropSlot(e, slotId)}
-          onClick={() => manejarClickSlot(slotId, 'cuadro')} // Hacemos el hueco clicable
+          onClick={() => manejarClickSlot(slotId, 'cuadro')}
         >
           {cuadroEnSlot ? renderMueble(cuadroEnSlot, true) : <span className="slot-num">{i + 1}</span>}
         </div>
@@ -175,9 +126,7 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
         <div 
           key={slotId} 
           className="slot-centro" 
-          onDragOver={e => e.preventDefault()} 
-          onDrop={e => handleDropSlot(e, slotId)}
-          onClick={() => manejarClickSlot(slotId, 'mesa-grande')} // Hacemos el hueco clicable
+          onClick={() => manejarClickSlot(slotId, 'mesa-grande')}
         >
           {mesaEnSlot ? renderMueble(mesaEnSlot, true) : <span className="slot-num">Mesa {i + 1}</span>}
         </div>
@@ -220,15 +169,9 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
           <div className="form-group-mini"><label>Pared 3 (Abajo):</label><input type="number" min="0" max="15" value={configZonas.z3} onChange={e => actualizarConfigZonas('z3', e.target.value)} /></div>
           <div className="form-group-mini"><label>Pared 4 (Izquierda):</label><input type="number" min="0" max="15" value={configZonas.z4} onChange={e => actualizarConfigZonas('z4', e.target.value)} /></div>
         </div>
-
-        <hr style={{ margin: '15px 0', border: '1px solid #ddd' }} />
         
-        <h2>Mobiliario Libre</h2>
-        <div className="botones-creacion">
-          <button className="btn-add" onClick={() => agregarMueble('cuadro')}>+ Añadir Cuadro</button>
-          <button className="btn-add" onClick={() => agregarMueble('mesa-grande')}>+ Añadir Mesa Grande</button>
-          <button className="btn-add" onClick={() => agregarMueble('mesa-pequena')}>+ Añadir Mesa Pequeña</button>
-        </div>
+        {/* Como el drag and drop desapareció, la sección de añadir muebles libres ya no es necesaria, 
+            ya que todo se maneja desde los huecos de arriba de forma inteligente */}
       </aside>
 
       <main className="area-principal">
@@ -238,8 +181,9 @@ export default function Sala({ cambiarVista, elementos, setElementos, imagenesDi
           <div className="pared pared-3"><div className="zona-titulo">ZONA 3</div>{renderPared(3, configZonas.z3)}</div>
           <div className="pared pared-4"><div className="zona-titulo rotado-izq">ZONA 4</div>{renderPared(4, configZonas.z4)}</div>
 
-          <div className="sala-canvas" onDragOver={(e) => e.preventDefault()} onDrop={handleDropCanvas}>
+          <div className="sala-canvas">
             {renderCentro(configZonas.centro)}
+            {/* Renderizado de seguridad para muebles antiguos que estuvieran sueltos antes del cambio */}
             {elementos.filter(el => el.tipo !== 'config-zonas' && !el.slotId).map(el => renderMueble(el, false))}
           </div>
         </div>
